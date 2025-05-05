@@ -15,7 +15,7 @@ module Fase1_tb;
 	initial begin
 		//Inicializamos el reloj
 		clk = 0;
-		#500;
+		#2000;
 		$finish;
 	end
 
