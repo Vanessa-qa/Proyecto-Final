@@ -21,8 +21,7 @@ module BancoReg
 	
 	initial
 	begin  
-		#100;
-			$readmemb("Datos.txt", Banreg); 
+		$readmemb("Datos.txt", Banreg); 
 	end 
 
     always @(*) begin
