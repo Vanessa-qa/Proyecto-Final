@@ -5,252 +5,156 @@
 
 module TipoI
 (
-	input clk		//Señal de reloj
+	input clk	//Señal de reloj
 );
 
-
 //   CONEXIONES
+wire [31:0]DataIn;       //Dato de PC
+wire [31:0]ResultSum;    //Dato de salida de SUM
+wire [31:0]INST;         //Instrucción de 32 bits
 
-//Conexion del PC
-wire [31:0] Address;
-
-//Conexiones del SUM
-wire [31:0] dataSUM;
-
-//Conexiones con la Memoria de Instrucciones
-wire [31:0] INST, INSTOUT;
-
-//Conexion del buffer 1
-wire [31:0] B1sum;
-
-//Division de la instrucción
 wire [5:0] OP, Funct;
 wire [4:0] RS, RT, RD;
 wire [15:0] I;
 
-//Conexion Multiplexor 1
-wire [4:0] dataOut;
-
-//Conexiones Unidad de Control
-wire RdT, BRAN, MemR, MtR, MtW, AsC, RtW;
+//Conexiones con la unidad de control
+wire RdT, BRANCH, MeR, MtR, MtW, AsC, RtW;
 wire [1:0] ALUOP;
 
-//Conexiones Banco de Registros
-wire [31:0] DataBR, DATAREG1, DATAREG2;
+//Conexiones del registro 1 y 2 del banco de registros
+wire [31:0] DATAREG1, DATAREG2;
 
-//Conexion del Extensor de Signo
-wire [31:0] exten;
+wire [31:0] dataBR;      //Dato de entrada para el banco de registros
+wire [4:0] dataMux1;     //Dato de salida del multiplexor 1
+wire [31:0] extOut;      //Dato de salida del extensor de signo
 
 //Conexiones del buffer 2
-wire B2banreg, out1, out2, out3, out4, out5, out6;
-wire [31:0] B2banreg1, B2banreg2, sigExt;
-wire [1:0] B2aluop;
+wire [31:0] data1, data2, extensorData;
 
-//Conexiones ALU de Control
-wire [3:0] aluCtrlOP;
+wire zeroflag;           //Señal de bandera cero
+wire [31:0]AluResultOP;        //Resultado de la operacion de la alu
 
-//Conexiones del Shift Left
-wire [31:0] SLdata;
-
-//Conexion de alu branch
-wire [31:0] ALUbranR;
-
-//Conexion del Multiplexor numero 4
-wire [31:0] mux4R;	
-
-//Conexion de el and branch
-wire andR;
-
-//Conexiones ALU
-wire [31:0] b, ALUresult, Zflag;
-
-//Conexiones del buffer 3
-wire [31:0] result;
-wire flag;
-
-//Conexion Memoria de datos
-wire [31:0] READMEM;
-
-//Conexion del buffer 4
-wire [31:0] MemResult;
-
+//Conexiones tras pasar el buffer 3
+wire zeroBuffer3;
+wire [31:0]resultBuffer3;
 
 //    INSTANCIAS
-
-//Instancia del Contador de programa
-PC pc
-	(
-		.data_in(mux4R), 
-		.data_out(Address),
-		.clk(clk)
-	);
-	
-//Instancia del Sumador
-SUM sum
-	(
-		.data_in(Address), 
-		.data_out(dataSUM)
-	);
-
-//Instancia del buffer 1
-buffer1 b1
-	(
-		.clk(clk), .InstIN(INST), .SUMIN(dataSUM),
-		.InstOUT(INSTOUT), .SUMOUT(B1sum)
-	);
-	
-//Instancia de la Memoria de Instrucciones
-MemoriaInst mem
+//Instancia del ciclo fetch
+CicloFetch CF
 	(
 		.clk(clk),
-		.Dir(Address), 
+		.DataIn(DataIn),
+		.Rsum(ResultSum),
 		.Inst(INST)
 	);
-
+	
 //Asignacion de las entradas
-assign OP = INSTOUT[31:26];
-assign RS = INSTOUT[25:21];
-assign RT = INSTOUT[20:16];
-assign RD = INSTOUT[15:11];
-assign Funct = INSTOUT[5:0];
-assign I = INSTOUT[15:0];
+assign OP = INST[31:26];
+assign RS = INST[25:21];
+assign RT = INST[20:16];
+assign RD = INST[15:11];
+assign Funct = INST[5:0];
+assign I = INST[15:0];
 
-//Instancia del Multiplexor numero 1
-Mux1 Mux01
+//Instancia del branch
+branch b1
 	(
-		.RegDst(out1), .rt(RT), 
-		.rd(RD), .DataOut(dataOut)
+		.MuxData1(ResultSum),
+		.SFdata(extensorData),
+		.branchIN(BRANCH),
+		.Zflag(zeroBuffer3),
+		.MuxDataOut(DataIn)
 	);
 
 //Instancia de la Unidad de Control
 UniCtrl Uni1
 	(
-		.Op(OP), .RegDst(RdT), .Branch(BRAN),
-		.MemRead(MemR), .MemToReg(MtR), 
-		.MemToWrite(MtW), .AluOp(ALUOP), 
-		.ALUSrc(AsC), .RegToWrite(RtW)
+		.Op(OP), 
+		.RegDst(RdT), 
+		.Branch(BRANCH), 
+		.MemRead(MeR),
+		.MemToReg(MtR), 
+		.MemToWrite(MtW), 
+		.AluOp(ALUOP), 
+		.ALUSrc(AsC), 
+		.RegToWrite(RtW)
 	);
-
+	
 //Instancia del Banco de Registros
 BancoReg Banco1
 	(
-		.clk(clk), .Reg1(RS), .Reg2(RT), 
-		.WriteAddr(dataOut), .Data(DataBR), 
-		.RegEn(B2banreg), .DataReg1(DATAREG1), 
+		.clk(clk), 
+		.Reg1(RS), 
+		.Reg2(RT), 
+		.WriteAddr(dataMux1), 
+		.Data(dataBR), 
+		.RegEn(RtW), 
+		.DataReg1(DATAREG1), 
 		.DataReg2(DATAREG2)
 	);
-
-//Instancia del Extensor de Signo
-Extensor Ex1
+	
+//Instancia del multiplexor 1
+Mux1 m1
 	(
-		.dataIN(I), .dataOUT(exten)
+		.RegDst(RdT),
+		.rt(RT),
+		.rd(RD),
+		.DataOut(dataMux1)
+	);
+
+//Instancia del extensor de signo
+Extensor ext
+	(
+		.dataIN(I),
+		.dataOUT(extOut)
 	);
 
 //Instancia del buffer 2
 buffer2 b2
 	(
 		.clk(clk),
-		.RegDst(RdT),  
-		.Branch(BRAN),      
-		.MemRead(MemR),
-		.MemToReg(MtR),
-		.MemToWrite(MtW),
-		.AluOp(ALUOP),
-		.ALUSrc(AsC), 
-		.RegToWrite(RtW),
 		.DataReg1(DATAREG1),
 		.DataReg2(DATAREG2),
-		.SigEx(exten),
-		
-		.OUTRegDst(out1),  
-		.OUTBranch(out2),      
-		.OUTMemRead(out3),
-		.OUTMemToReg(out4),
-		.OUTMemToWrite(out5),
-		.OUTAluOp(B2aluop),
-		.OUTALUSrc(out6), 
-		.OUTRegToWrite(B2banreg),
-		.OUTDataReg1(B2banreg1),
-		.OUTDataReg2(B2banreg2),
-		.OUTSigEx(SigEx)
+		.SigEx(extOut),
+		.OUTDataReg1(data1),
+		.OUTDataReg2(data2),
+		.OUTSigEx(extensorData)
 	);
 
-//Instancia de la ALU de Control
-ALUCtrl AluCtrl
+//Instancia de Operation
+operation op
 	(
-		.Op(B2aluop), .Function(Funct), 
-		.InstI(OP), .OPAlu(aluCtrlOP)
+		.ALUSrc(AsC),
+		.ALUOp(ALUOP),
+		.data1ALU(data1),
+		.data2ALU(data2),
+		.datatypeI(extensorData),
+		.Function(Funct),
+		.InstI(OP),
+		.zero(zeroflag),
+		.ALUresult(AluResultOP)
 	);
-
-//Instancia del Multiplexor numero 2
-Mux2 Mux02
-	(
-		.ALUSrc(out6), .ReadD2(B2banreg2),
-		.Exten(SigEx), .DataOut(b)
-	);
-
-//Instancia del Shift Left
-ShiftLeft sl
-	(
-		.DataIn(SigEx), .DataOut(SLdata)
-	);
-
-//Instancia de la Alu para los branch
-ALUbranch ab
-	(
-		.data1(B1sum), .data2(SLdata),
-		.data_out(ALUbranR)
-	);
-
-//Instancia del Multiplexor numero 4
-Mux4 Mux04
-	(
-		.ANDbranch(andR), .PC(B1sum),
-		.AluBranch(ALUbranR), .DataOut(mux4R)
-	);
-
-//Instancia de la compuerta AND para el branch
-ANDbranch andB
-	(
-		.A(out2), .B(flag), .R(andR)
-	);
-
-//Instancia de la ALU
-Alu Alu1
-	(
-		.A(DATAREG1), .B(b), .OP(aluCtrlOP), 
-		.Res(ALUresult), .zero(Zflag)
-	);
-
+	
 //Instancia del buffer 3
 buffer3 b3
 	(
 		.clk(clk),
-		.Res(ALUresult),
-		.zero(Zflag),
-		.OUTRes(result),
-		.OUTzero(flag)
-	);
-
-//Instancia de la Memoria de datos
-MemDatos Mem1
-	(
-		.clk(clk), .Addr(result), .Data(B2banreg2), 
-		.MemWrite(out5), .MemRead(out3), .ReadMemData(READMEM)
-	);
-
-//Instancia del buffer 4
-buffer4 b4
-	(
-		.clk(clk), .MemRead(READMEM),
-		.OUTMemRead(MemResult)
-	);
-
-//Instancia del Multiplexor numero 3
-Mux3 Mux03
-	(
-		.MemToReg(out4), .ReadMem(MemResult), 
-		.Result(result), .DataOut(DataBR)
+		.Res(AluResultOP),
+		.zero(zeroflag),
+		.OUTRes(resultBuffer3),
+		.OUTzero(zeroBuffer3)
 	);
 	
+//Instancia de MemoryData
+MemoryData md
+	(
+		.clk(clk),
+		.AddrMem(resultBuffer3),
+		.DataMem(data2),
+		.MemWrite(MtW),
+		.MemRead(MeR),
+		.MemToReg(MtR),
+		.DataOut(dataBR)
+	);
+
 endmodule
