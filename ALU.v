@@ -6,7 +6,8 @@ module Alu
     input wire [31:0] A,
     input wire [31:0] B,
     input wire [3:0] OP,
-    output reg [31:0] Res
+    output reg [31:0] Res,
+	output reg zero
 );
 
 always @(*) begin
@@ -19,6 +20,11 @@ always @(*) begin
 		4'b1111: Res = 32'd0;		//NOP
         default: Res = 32'd0;
     endcase
+	
+	if (Res == 32'b0)
+        zero = 1'b1;
+    else
+        zero = 1'b0;
 end
 
 endmodule
