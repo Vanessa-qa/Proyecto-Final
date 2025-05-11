@@ -1,0 +1,26 @@
+//Cuantos Numeros Multiplos de X numero hay en # cantidad de numeros.
+
+//Inicializamos nuestros valores
+ADDI, $1, $0, #1		//i = 1
+ADDI, $2, $0, #20		//Limite de numeros = 20
+ADDI, $3, $0, #0		//Contador de multiplos
+ADDI, $4, $0, #3		//Constante 3 en este caso
+
+//LOOP:
+ADDI, $6, $0, #0		//Inicializamos el espacio en 0 por cada ciclo
+ADD, $6, $1, $0		//Le asignamos el valor actual de i
+
+//Division
+SUB, $6, $6, $4		//Le restamos la constante al indice i
+BEQ, $6, $0, #3		//Verificamos si el resultado es = 0, indicando que i es multiplo de la constante, si se cumple, aumenta el contador y aumenta i
+SLT, $7, $6, $0		//Si el resultado no es 0, se hace una verificación de si es menor que 0, si es asi retorna 1, de lo contrario es mayor, entonces 0
+BNE, $7, $0, #2		//Si el resultado es menor que 0, significa que no es multiplo y se incrementa a i, mientras que el contador permanece igual, si el resultado es mayor que 0, no se hace nada y sigue con la siguiente instruccion
+J, #6			//Se repite la resta hasta que el resultado quede como 0 o menor que 0.
+
+ADDI, $3, $3, #1		//Se incrementa el contador
+ADDI, $1, $1, #1		//Se incrementa a i
+SLT, $8, $2, $1		//Verificamos si el limite es menor que i, en caso de serlo retorna 1, caso contrario retorna 0.
+BNE, $8, $0, #1		//Si el SLT retorna 1, el indice i ya alcanzó al limite, y se finaliza. Si retorna 0, no ocurre nada y pasa a la siguiente instruccion
+J, #4			//Saltamos nuevamente al LOOP mientras i no alcance al limite.
+NOP
+NOP
